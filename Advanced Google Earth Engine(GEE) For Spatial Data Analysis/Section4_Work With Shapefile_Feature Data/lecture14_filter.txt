@@ -1,0 +1,23 @@
+
+//var worldcountries = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017');
+//var filterCountry = ee.Filter.eq('country_na', 'Italy');
+//var country = worldcountries.filter(filterCountry);
+//Map.addLayer(country);
+//Map.centerObject(country, 6);
+
+var world=ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017");
+//Map.addLayer(world);
+
+var country=ee.Filter.eq('country_na','Thailand');
+
+var thai=world.filter(country);
+
+Map.addLayer(thai);
+Map.centerObject(thai,6);
+
+var country2=ee.Filter.eq('country_co','CB');
+
+var khm=world.filter(country2);
+
+Map.addLayer(khm);
+Map.centerObject(khm,6);

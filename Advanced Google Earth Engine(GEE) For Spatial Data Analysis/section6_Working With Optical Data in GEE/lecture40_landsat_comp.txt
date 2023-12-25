@@ -1,0 +1,18 @@
+
+
+var landsatCollection = ee.ImageCollection('LANDSAT/LC08/C01/T1') //raw-- l8
+    .filterBounds(table)
+    .filterDate('2016-01-01', '2016-12-31'); //2016
+    
+// Make a cloud-free composite.
+//elects a subset of scenes at each location, 
+//converts to TOA reflectance, applies the simple cloud score and takes the median of the least cloudy pixels. 
+var composite = ee.Algorithms.Landsat.simpleComposite({
+  collection: landsatCollection,
+  asFloat: true
+});
+
+print(composite)
+
+// Visualize the Composite
+Map.addLayer(composite, {bands: ['B4', 'B3', 'B2']}, 'RGB'); 

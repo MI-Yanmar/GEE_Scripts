@@ -1,0 +1,30 @@
+//https://code.earthengine.google.com/?asset=users/minervas_jojo_code/Amazonia_bolivia
+
+// Load a pre-computed Landsat composite for input.
+var input = ee.Image('LANDSAT/LE7_TOA_1YEAR/2001').clip(table);
+//clipped to the extent of Amazonian bolivia
+
+// Display the sample region.
+
+//Map.addLayer(ee.Image().paint(table, 0, 2), {}, 'region');
+
+// Make the training dataset.
+var training = input.sample({ //sample points to feed into algorithms
+  region: table,
+  scale: 30, //landsat
+  numPixels: 5000
+});
+
+// Instantiate the clusterer/algorithm and train it.
+var clusterer = ee.Clusterer.wekaKMeans(7).train(training);
+//.train implements the algorithm
+//clusterer: wekameans
+//there are 7 different lulc
+
+// Cluster the input using the trained clusterer.
+var result = input.cluster(clusterer);
+
+// Display the clusters with random colors.
+Map.addLayer(result.randomVisualizer(), {}, 'clusters');
+
+//Map.addLayer(table);

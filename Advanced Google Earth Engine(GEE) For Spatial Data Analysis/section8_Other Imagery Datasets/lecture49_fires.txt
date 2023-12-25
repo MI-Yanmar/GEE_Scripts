@@ -1,0 +1,26 @@
+// Get a feature collection of Japan
+var c = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Cambodia'));
+
+var fc1 = ee.FeatureCollection('users/minervas_jojo_code/KHM_polygons');
+//Map.setCenter(103.855, 13.55, 12); //KL city
+//Map.addLayer(fc, {}, 'Boundaries');
+
+//var roi = fc1.filter(ee.Filter.eq('NAME', 'Phnom Kulen'));
+  
+//Map.addLayer(roi, {}, 'PKNP From Fusion Table');
+
+
+// MCD64A1 
+//https://explorer.earthengine.google.com/#detail/MODIS%2F006%2FMCD64A1
+var collection = ee.ImageCollection('MODIS/006/MCD64A1') 
+//surface reflectance
+    .filterBounds(c)
+    .filterDate('2014-02-01', '2014-03-31');
+
+// Compute average statistics from the image collection 
+var mean = collection.mean();
+
+// Display 
+Map.addLayer(mean, {}, 'Landsat Satellite (japan)');
+Map.centerObject(c, 8);

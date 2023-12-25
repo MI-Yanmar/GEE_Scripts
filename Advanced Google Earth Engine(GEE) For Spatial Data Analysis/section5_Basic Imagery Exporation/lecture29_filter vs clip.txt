@@ -1,0 +1,22 @@
+var japan = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Japan'));
+
+//Map.addLayer(japan);
+
+//var s21c=ee.ImageCollection("COPERNICUS/S2")//sentinel-2 
+var s22a= ee.ImageCollection("COPERNICUS/S2_SR") //sentinel-2 optical corrected
+
+
+var filtered = s22a.filterBounds(japan)//filter by area
+    .filterDate('2019-05-01','2019-08-14')//filter by time
+    .median();//calculates the median pixel value at every pixel location
+
+print(filtered);  
+//Map.addLayer(filtered);  
+
+//RGB color composite
+//Map.addLayer(filtered,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');
+
+var clipped=filtered.clip(japan);
+
+Map.addLayer(clipped,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');

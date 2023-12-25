@@ -1,0 +1,34 @@
+var bol = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Bolivia'));
+
+var s21c=ee.ImageCollection("COPERNICUS/S2") //optical 
+var s22a= ee.ImageCollection("COPERNICUS/S2_SR") //surface reflectance corrected
+
+
+//Atmospheric corrected data
+
+// Import the Sentinel-2, level 2A collection from the search bar as 's22a'.
+
+var filtered = s22a.filterBounds(bol)//filter by area
+    .filterDate('2019-05-01','2019-08-14')//filter by time
+    .median();//calculates the median pixel value at every pixel location
+  
+// visualise the median image over Theewaterskloof
+//Map.centerObject(Theewaterskloof,14);//center image on point of interest
+Map.addLayer(filtered,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');
+
+//calculate NDVI and NDWI
+var NDVI = filtered.normalizedDifference(['B8','B4']);//NIR and Red
+var NDWI = filtered.normalizedDifference(['B3','B8']);//NIR and Green
+var NBR = filtered.normalizedDifference(['B8','B12']);//NIR and Green
+
+//Visualise NDVI and NDWI
+// Make a palette: a list of hex strings.
+var vis = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
+              '74A901', '66A000', '529400', '3E8601', '207401', '056201',
+              '004C00', '023B01', '012E01', '011D01', '011301'];
+              
+Map.addLayer(NDVI,{min: 0, max: 1, palette: vis},'NDVI');
+Map.addLayer(NDWI,{min: -1, max: 1, palette: vis},'NDWI');
+Map.addLayer(NBR,{min: 0, max: 1, palette: vis},'NBR');
+

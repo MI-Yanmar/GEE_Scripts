@@ -1,0 +1,39 @@
+//https://code.earthengine.google.com/b826c521bd048b34a2f40689013f3cad
+
+var landsatCollection = ee.ImageCollection('LANDSAT/LC08/C01/T1') //raw-- l8
+    .filterBounds(table)
+    .filterDate('2016-01-01', '2016-12-31'); //2016
+    
+// Make a cloud-free composite.
+//elects a subset of scenes at each location, 
+//converts to TOA reflectance, applies the simple cloud score and takes the median of the least cloudy pixels. 
+var composite = ee.Algorithms.Landsat.simpleComposite({
+  collection: landsatCollection,
+  asFloat: true
+});
+
+print(composite)
+
+// Visualize the Composite
+Map.addLayer(composite, {bands: ['B4', 'B3', 'B2']}, 'RGB'); 
+
+var image=composite.clip(table);
+
+var subset = image.select('B[1-7]') //first 7 bands
+
+var samples = ee.FeatureCollection([Water,Bare,Forest]);
+
+var Chart1 = ui.Chart.image.regions(
+    subset, samples, ee.Reducer.mean(), 10, 'label')
+        .setChartType('ScatterChart');
+print(Chart1);
+
+// Define spectral endmembers.
+var bare = [0.127,0.105,0.091,0.084,0.22,0.23,0.132];
+var forest = [0.113,0.087,0.066,0.041,0.303,0.123,0.043];
+var water = [0.148,0.136,0.148,0.138,0.043,0.009,0.005];
+
+// Unmix the image.
+var fractions = subset.unmix([bare, forest, water]);
+Map.addLayer(fractions, {}, 'unmixed');
+    

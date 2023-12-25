@@ -1,0 +1,27 @@
+// Get a feature collection of cambodia
+var c = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+  filter(ee.Filter.eq('country_na', 'Cambodia'));
+              
+Map.addLayer(c);     
+
+// For 2016
+var dataset = ee.Image('JAXA/ALOS/PALSAR/YEARLY/SAR/2016');//alos
+
+// Compute the HH-HV value and add as new Band
+var hhhv = dataset.expression(
+  '(HH - HV)', {
+    'HH': dataset.select('HH'),
+    'HV': dataset.select('HV')
+}).rename('HHHV');
+var dataset = dataset.addBands(hhhv);
+
+var data2=dataset.clip(c);
+
+// apply: γ₀ = 10log₁₀(DN²) - 83.0 dB
+var DN = data2.select('HHHV');
+
+var dB = DN.pow(2).log10().multiply(10).subtract(83);
+
+print(dB);
+
+Map.addLayer(dB, {min: -20, max: -5}, 'dB')

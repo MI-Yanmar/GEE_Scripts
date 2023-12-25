@@ -1,0 +1,21 @@
+
+//Code link: 
+// https://code.earthengine.google.com620ef87be320af1bd1defeab684feff4
+
+//Link to Minerva's Bolivia asset
+// https://code.earthengine.google.com/?asset=users/minervas_jojo_code/Amazonia_bolivia
+
+
+print(table);
+
+Map.addLayer(table);
+
+var ghm=ee.ImageCollection("CSP/HM/GlobalHumanModification")
+
+//Map.addLayer(ghm);
+
+var image2=image; //var new=old;
+print(image2);
+
+//Map.addLayer(image);
+

@@ -1,0 +1,104 @@
+
+//https://code.earthengine.google.com/5ec3d4519ac74c31bde32bc4319989c9
+
+// LANDSAT COMPOSITE
+var landsatCollection = ee.ImageCollection('LANDSAT/LC08/C01/T1') //raw-- l8
+    .filterBounds(table)
+    .filterDate('2016-01-01', '2016-12-31'); //2016
+    
+// Make a cloud-free composite.
+// selects a subset of scenes at each location, 
+// converts to TOA reflectance, applies the simple cloud score and takes the median of the least cloudy pixels. 
+var composite = ee.Algorithms.Landsat.simpleComposite({
+  collection: landsatCollection,
+  asFloat: true
+});
+
+// PRINT IMAGE
+print(composite);
+
+// CLIP IMAGE TO ROI
+var image = composite.clip(table);
+
+//var subset = image.select('B[1-7]') //first 7 bands
+//print(subset)
+
+// VISUALIZE IMAGE
+Map.addLayer(image,{min:0,max:0.3,bands:['B4', 'B3', 'B2']},'RGB'); 
+
+// IMAGE BANDS TO USE
+var bands = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7'];
+
+// Merge all land cover geolocation data
+var samples=forest.merge(water).merge(sparse).merge(degraded);
+
+// CLASSES
+var classes = ['forest','water','sparse','degraded'];
+
+// REMAP LAND COVER FOR CLASSIFICATION
+// GEE WORKS WITH INT DATATYPE
+var samples = samples.remap({
+  lookupIn: classes,
+  lookupOut: [0,1,2,3],
+  columnName: 'lulc'
+});
+
+// SAMPLE REGIONS
+var points = image.select(bands).sampleRegions({
+  collection: samples, 
+  properties: ['lulc'],
+  scale: 30
+}).randomColumn();
+
+//---------------------------------------------------------------------------
+// TRAINING POINTS
+var training = points.filter(ee.Filter.lt('random', 0.7));
+
+// VALIDATION POINTS
+var validation = points.filter(ee.Filter.gte('random', 0.7));
+
+// TRAIN RANDOM FOREST CLASSIFIER
+var classifier = ee.Classifier.randomForest(100, 1, 1, 0.5, false, 0).train({
+  features: training, 
+  classProperty: 'lulc',
+  inputProperties: bands
+});
+
+//---------------------------------------------------------------------------
+// CLASSIFY THE IMAGE.
+var classified = image.select(bands).classify(classifier);
+
+// ADD CLASSIFIED IMAGE TO THE MAP
+//Map.addLayer(classified, {min: 0, max: 3, palette: ['GREEN', 'BLUE', 'BROWN','YELLOW']}, 'Classification');
+
+// CLASSIFY VALIDATION SET
+var validated = validation.classify(classifier);
+
+// PRINT VALIDATION SET
+print('Validated',validation);
+
+// COMPUTE ERROR MATRIX ON VALIDATION SET
+var Accuracy = validated.errorMatrix('lulc', 'classification');
+
+// PRINT ERROR MATRIX
+print('ERROR MATRIX: ', Accuracy);
+
+// OVERALL ACCURACY
+var overallAccuracy = Accuracy.accuracy();
+
+// PRINT ACCURACY
+print('OVERALL ACCURACY: ',overallAccuracy);
+
+//individual classes
+
+// CONSUMERS/user AND PRODUCERS ACCURACY
+var consumersAccuracy = Accuracy.consumersAccuracy();
+var producersAccuracy = Accuracy.producersAccuracy();
+
+
+print('CLASSES ACCURACY:');
+for (var i=0; i < classes.length; i++) {
+  print('Class: ' + classes[i]);
+  print('Consumers Accuracy:', consumersAccuracy.get([0,i]));
+  print('Producers Accuracy:', producersAccuracy.get([i,0]));
+}

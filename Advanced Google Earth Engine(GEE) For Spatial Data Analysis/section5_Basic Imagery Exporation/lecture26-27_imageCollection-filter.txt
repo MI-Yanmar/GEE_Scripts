@@ -1,0 +1,45 @@
+var japan = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Japan'));
+
+//Map.addLayer(japan);
+
+//var s21c=ee.ImageCollection("COPERNICUS/S2")//sentinel-2 
+var s22a= ee.ImageCollection("COPERNICUS/S2_SR") //sentinel-2 optical corrected
+
+
+var filtered = s22a.filterBounds(japan)//filter by area
+    .filterDate('2019-05-01','2019-08-14')//filter by time
+    .median();//calculates the median pixel value at every pixel location
+
+//print(filtered);  
+//Map.addLayer(filtered);  
+
+//RGB color composite
+//Map.addLayer(filtered,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');
+
+
+//least cloudy images 
+//var l8_a= ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') 
+//surface reflectance
+    //.filterBounds(japan)
+    //.filterDate('2016-01-01', '2016-04-30')
+    //.sort('CLOUD_COVER',false);
+    
+var l8_a= ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+            .filterBounds(japan)
+            .filterDate('2016-01-01', '2016-04-30')// start and end
+            .sort('CLOUD_COVER',false); //image with least cloud cover
+    
+//Map.addLayer(l8_a);   
+
+//print(l8_a)
+
+//cloud cover threshold
+var l8_b=ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+        .filterBounds(japan)  
+        .filterDate('2016-01-01', '2016-04-30')
+        .filterMetadata('CLOUD_COVER','less_than',10);
+        
+print(l8_b);  
+
+Map.addLayer(l8_a,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');   

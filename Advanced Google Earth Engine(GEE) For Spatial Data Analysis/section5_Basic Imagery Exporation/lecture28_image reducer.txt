@@ -1,0 +1,20 @@
+
+var c = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Cambodia'));
+              
+var l8=ee.ImageCollection("LANDSAT/LC08/C01/T1_TOA");
+
+
+
+var l8_c=l8.filterBounds(c)
+          .filterDate('2018-01-01', '2018-07-31');
+          
+print(l8_c);  
+
+var l8_median=l8_c.median();
+
+print(l8_median)
+
+Map.addLayer(l8_median,{bands:['B4','B3','B2'],max:0.3},'median l8');
+          
+       

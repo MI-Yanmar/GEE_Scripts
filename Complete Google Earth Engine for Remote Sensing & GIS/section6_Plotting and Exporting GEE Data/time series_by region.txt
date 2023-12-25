@@ -1,0 +1,22 @@
+
+//Choose country using GEE Feature Collection
+
+//var region = ee.FeatureCollection('ft:1et5l9_DRJ8oHKWPvlN95Q1xzAveLfALDjxOGfSa3');
+//single region-pa
+
+var region = ee.FeatureCollection('ft:1eWrMs3TnMsqE-uQ1YFVDgCG2DHeuGH8N1iW6DNTZ');
+//Malaysia pas
+
+var lNDVI = ee.ImageCollection('LANDSAT/LT5_L1T_ANNUAL_NDVI');// Landsat data
+
+var collection05 = ee.ImageCollection(lNDVI.filterDate('2006-06-01', '2009-06-01'));
+
+var clipped05 = collection05.mean().clip(region)
+
+//Long-Term Time Series
+var TS5 = Chart.image.seriesByRegion(collection05, region, ee.Reducer.mean(),'NDVI',
+30, 'system:time_start').setOptions({
+title: 'NDVI (Annual)',
+vAxis: {title: 'NDVI'},
+});
+print(TS5);

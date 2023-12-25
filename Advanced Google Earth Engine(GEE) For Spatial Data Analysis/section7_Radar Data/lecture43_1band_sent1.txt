@@ -1,0 +1,16 @@
+// Get a feature collection of cambodia
+var c = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('country_na', 'Cambodia'));
+              
+Map.addLayer(c);     
+
+//select the VV band
+
+var sent=ee.ImageCollection('COPERNICUS/S1_GRD')
+.filterBounds(c)
+.filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+.select('VV');
+
+// Filter by date
+var date = sent.filterDate('2019-05-01', '2019-05-17').mosaic();
+
+Map.addLayer(date, {min:-30,max:0}, 'Before flood');

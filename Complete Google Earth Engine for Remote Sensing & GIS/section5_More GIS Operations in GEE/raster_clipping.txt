@@ -1,0 +1,11 @@
+// Get a feature collection of Japan
+var japan = ee.FeatureCollection('ft:1tdSwUL7MVpOauSgRzqVTOwdfy17KDbw-1d9omPw')
+  .filter(ee.Filter.eq('Country', 'Japan'));
+
+// Load the NDVI image for 2007.
+var n2007 = ee.Image('LANDSAT/LT5_L1T_ANNUAL_EVI/2007');
+
+var roi = n2007.clip(japan); //clip will clip raster to the
+// extent of japan 
+
+Map.addLayer(roi);

@@ -1,0 +1,66 @@
+
+
+
+var landsatCollection = ee.ImageCollection('LANDSAT/LC08/C01/T1') //raw-- l8
+    .filterBounds(table)
+    .filterDate('2016-01-01', '2016-12-31'); //2016
+    
+// Make a cloud-free composite.
+//elects a subset of scenes at each location, 
+//converts to TOA reflectance, applies the simple cloud score and takes the median of the least cloudy pixels. 
+var composite = ee.Algorithms.Landsat.simpleComposite({
+  collection: landsatCollection,
+  asFloat: true
+});
+
+print(composite)
+
+// Visualize the Composite
+//Map.addLayer(composite, {bands: ['B4', 'B3', 'B2']}, 'RGB'); 
+
+var image=composite.clip(table);
+
+//var subset = image.select('B[1-7]') //first 7 bands
+//print(subset)
+
+Map.addLayer(image, {bands: ['B4', 'B3', 'B2']}, 'RGB'); 
+
+var bands = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7'];
+// Merge all land cover geolocation data 
+
+var samples=forest.merge(water).merge(sparse).merge(degraded);
+var points = image.select(bands).sampleRegions({
+  collection: samples, 
+  properties: ['lulc'],
+  scale: 30
+}).randomColumn();
+//---------------------------------------------------------------------------
+var training = points.filter(ee.Filter.lt('random', 0.75));
+var validation = points.filter(ee.Filter.gte('random', 0.75));
+var classifier = ee.Classifier.randomForest(100, 1, 1, 0.5, false, 0).train({
+  features: training, 
+  classProperty: 'lulc',
+  inputProperties: bands
+});
+//---------------------------------------------------------------------------
+// CLASSIFY THE IMAGE.
+var classified = image.select(bands).classify(classifier);
+Map.addLayer(classified.clip(table), {min: 0, max: 3, palette: ['GREEN', 'BLUE', 'BROWN','YELLOW']}, 'classification');
+var validated = validation.classify(classifier);
+print('Validated',validation);
+var Accuracy = validated.errorMatrix('lulc', 'classification');
+print('ERROR MATRIX: ', Accuracy);
+print('OVERALL ACCURACY: ', Accuracy.accuracy());
+
+//individual classes
+
+// CONSUMERS/user AND PRODUCERS ACCURACY
+var consumersAccuracy = Accuracy.consumersAccuracy();
+var producersAccuracy = Accuracy.producersAccuracy();
+
+
+print('CLASSES ACCURACY:');
+for (var i=0; i < classes.length; i++) {
+  print('Class: ' + classes[i]);
+  print('Consumers Accuracy:', consumersAccuracy.get([0,i]));
+  print('Producers Accuracy:', producersAccu

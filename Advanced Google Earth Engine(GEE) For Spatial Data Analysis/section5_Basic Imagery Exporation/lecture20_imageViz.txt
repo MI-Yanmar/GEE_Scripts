@@ -1,0 +1,15 @@
+var dataset = ee.Image('USGS/GFSAD1000_V1'); //crops 
+
+//print(dataset);
+
+var crop = dataset.select('landcover');//select band by name 'landcover'
+
+print(crop);
+
+var cropMaskVis = {
+  min: 0.0, // the strating value of encoding
+  max: 5.0,
+  palette: ['black', 'orange', 'brown', 'blue', 'green', 'red'],
+};
+
+Map.addLayer(crop, cropMaskVis, 'Crop Mask');

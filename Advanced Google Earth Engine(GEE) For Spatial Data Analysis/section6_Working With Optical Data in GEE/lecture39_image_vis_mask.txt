@@ -1,0 +1,46 @@
+
+
+var bol = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').
+              filter(ee.Filter.eq('country_na', 'Bolivia'));
+
+var s22a= ee.ImageCollection("COPERNICUS/S2_SR") //surface reflectance corrected
+
+
+//Atmospheric corrected data
+
+// Import the Sentinel-2, level 2A collection from the search bar as 's22a'.
+
+var filtered = s22a.filterBounds(bol)//filter by area
+    .filterDate('2019-05-01','2019-08-14')//filter by time
+    .median();//calculates the median pixel value at every pixel location
+  
+
+Map.addLayer(filtered,{bands:['B4','B3','B2'],min:0,max:3000},'RGB');
+
+//calculate NDVI and NDWI
+var NDVI = filtered.normalizedDifference(['B8','B4']);//vegetatation
+var NDWI = filtered.normalizedDifference(['B3','B8']);//water index
+var NBR = filtered.normalizedDifference(['B8','B12']);
+
+
+//define thresholds
+
+var scar=0.6 //all values of nbr>0.6 are burn scars
+var vege=0.7
+var water=0.1
+
+//show the water bodies
+
+var ndwi_thr=NDWI.gt(water)//all values greater than or gt than 0.1
+
+var myndwi=ndwi_thr.updateMask(ndwi_thr).clip(bol);
+
+Map.addLayer(myndwi,{palette:'blue'},'water');
+
+//show the burn scars
+
+var brn_thr=NBR.gt(scar)//all values greater than or gt than 0.6
+
+var my_burn=brn_thr.updateMask(brn_thr).clip(bol);
+
+Map.addLayer(my_burn,{palette:'red'},'scar');

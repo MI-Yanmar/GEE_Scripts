@@ -1,0 +1,10 @@
+var world = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017');
+
+var countries = ['BM','TH','CB','VM'];
+
+var filter = ee.Filter.inList('country_co',countries);
+
+// WORLD BORDERS
+var zone = world.filter(filter); 
+
+Map.addLayer(zone);

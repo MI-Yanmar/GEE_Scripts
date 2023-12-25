@@ -1,0 +1,16 @@
+// Load a China boundary from a Fusion Table.
+var china = ee.FeatureCollection('ft:1tdSwUL7MVpOauSgRzqVTOwdfy17KDbw-1d9omPw')
+  .filter(ee.Filter.eq('Country', 'China'));
+
+// Load forest cover, clipped to the China border.
+var fc = ee.ImageCollection('MODIS/051/MOD44B')
+  .select('Percent_Tree_Cover').median()
+  .clipToCollection(china);
+
+//Map.addLayer(fc);
+
+// Define arbitrary thresholds on the 
+var zones = fc.gt(30).add(fc.gt(60)).add(fc.gte(75));
+zones = zones.updateMask(zones.neq(0));
+
+Map.addLayer(zones);

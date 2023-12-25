@@ -1,0 +1,71 @@
+// COUNTRIES
+var THA = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(ee.Filter.eq('country_na', 'Thailand'));
+// print('Check THA', THA);
+
+// ECOREGIONS of the world
+var ecoRegions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017").filterBounds(THA);
+// print('Check ecoRegions', ecoRegions);
+
+// ADD THAILAND TO THE MAP
+// Map.centerObject(THA);
+// Map.addLayer(THA,{},'THAILAND');
+
+var intersect = function(feature){
+
+  var fc = ecoRegions.filterBounds(feature.geometry()).map(function(f){
+    var intersects = feature.geometry().intersects(f.geometry());
+    return(f.set({intersects: intersects}));
+  });
+  // aggregate the "intersects" to an array and get the frequency of TRUE.
+  // Add that result as a property to the feature.  Any overlaps greater than 1
+  // means the feature overlaps with a different feature.
+  var status = ee.List(fc.aggregate_array("intersects")).frequency(true);
+  return(feature.set({overlaps: status}));
+
+};
+
+// Run new intersect function
+var ecoregion_th = ecoRegions.map(intersect);
+// print('Check ecoregion_th',ecoregion_th);
+
+// Add in symbology to view results
+// patch updated colors
+var colorUpdates = [
+{ECO_ID: 204, COLOR: '#B3493B'},
+{ECO_ID: 245, COLOR: '#267400'},
+{ECO_ID: 259, COLOR: '#004600'},
+{ECO_ID: 286, COLOR: '#82F178'},
+{ECO_ID: 316, COLOR: '#E600AA'},
+{ECO_ID: 453, COLOR: '#5AA500'},
+{ECO_ID: 317, COLOR: '#FDA87F'},
+{ECO_ID: 763, COLOR: '#A93800'},
+];
+
+// loop over all other features and create a new style property for styling
+// later on
+var ecoRegions = ecoregion_th.map(function(f) {
+  var color = f.get('COLOR');
+  return f.set({style: {color: color, width: 0}});
+});
+
+// make styled features for the regions we need to update colors for,
+// then strip them from the main asset and merge in the new feature
+for (var i=0; i < colorUpdates.length; i++) {
+  colorUpdates[i].layer = ecoRegions
+      .filterMetadata('ECO_ID','equals',colorUpdates[i].ECO_ID)
+      .map(function(f) {
+        return f.set({style: {color: colorUpdates[i].COLOR, width: 0}});
+      });
+
+  ecoRegions = ecoRegions
+      .filterMetadata('ECO_ID','not_equals',colorUpdates[i].ECO_ID)
+      .merge(colorUpdates[i].layer);
+}
+
+// use style property to color shapes
+var imageRGB = ecoRegions.style({styleProperty: 'style'});
+
+Map.centerObject(THA, 5);
+Map.addLayer(imageRGB.clip(THA), {}, 'RESOLVE/ECOREGIONS/2017');
+Map.addLayer(THA,{},'THAILAND', false);
+S

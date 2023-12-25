@@ -1,0 +1,26 @@
+
+// feature collection of the Thailand PA
+var pa = ee.FeatureCollection('ft:1et5l9_DRJ8oHKWPvlN95Q1xzAveLfALDjxOGfSa3');
+//Feature collection- vector datasets 
+//https://fusiontables.google.com/data?docid=1et5l9_DRJ8oHKWPvlN95Q1xzAveLfALDjxOGfSa3#rows:id=1
+
+// Load a Landsat 5 collection
+var collection = ee.ImageCollection('LANDSAT/LT05/C01/T1')
+    .filterBounds(pa)
+    .filterDate('2004-01-01', '2004-12-31');
+
+// Compute minimum statistics from the image collection 
+var m = collection.median();
+
+// Display 
+Map.addLayer(m, {bands: ['B7', 'B5', 'B4'], max: 0.4}, 'Landsat Satellite (USA)');
+Map.centerObject(pa, 8);
+
+var nir = m.select('B4');
+var swir = m.select('B7');
+var nbr = nir.subtract(swir).divide(nir.add(swir)).rename('NBR');
+
+// Display the result.
+Map.centerObject(m, 9);
+var nbrParams = {min: -1, max: 1, palette: ['blue', 'white', 'green']};
+Map.addLayer(nbr, nbrParams, 'NBR image');

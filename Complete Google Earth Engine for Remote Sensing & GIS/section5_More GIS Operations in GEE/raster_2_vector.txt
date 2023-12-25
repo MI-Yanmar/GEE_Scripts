@@ -1,0 +1,35 @@
+// Load a China boundary from a Fusion Table.
+var china = ee.FeatureCollection('ft:1tdSwUL7MVpOauSgRzqVTOwdfy17KDbw-1d9omPw')
+  .filter(ee.Filter.eq('Country', 'China'));
+
+// Load forest cover, clipped to the China border.
+var fc = ee.ImageCollection('MODIS/051/MOD44B')
+  .select('Percent_Tree_Cover').median()
+  .clipToCollection(china);
+
+//Map.addLayer(fc);
+
+// Define arbitrary thresholds on the 
+var zones = fc.gt(30).add(fc.gt(60)).add(fc.gte(75));
+zones = zones.updateMask(zones.neq(0));
+
+//Map.addLayer(zones);
+
+//
+var vectors = zones.addBands(fc).reduceToVectors({
+  geometry: china,
+  crs: fc.projection(),
+  scale: 1000,
+  geometryType: 'polygon',
+  eightConnected: false,
+  labelProperty: 'zone',
+  reducer: ee.Reducer.mean()
+});
+
+// Display the thresholds.
+Map.setCenter(101.35, 24.4, 9);
+Map.addLayer(zones, {min: 1, max: 3, palette: ['0000FF', '00FF00', 'FF0000']}, 'raster');
+
+// Make a display image for the vectors, add it to the map.
+var display = ee.Image(0).updateMask(0).paint(vectors, '000000', 3);
+Map.addLayer(display, {palette: '000000'}, 'vectors');

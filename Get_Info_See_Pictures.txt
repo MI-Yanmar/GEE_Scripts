@@ -1,0 +1,98 @@
+//https://code.earthengine.google.com/da39e19dfcf49d173d18dde0302cb471
+// 取得したい地点の緯度・経度・地名を入力
+var locations = {
+    '1': {'lat': 22.05, 'lon': 103.16, name: 'ムオンライ'},
+    '2': {'lat': 21.02, 'lon': 105.84, name: 'ハノイ'},
+    '3': {'lat': 18.35, 'lon': 105.89, name: 'ハティン'},
+    '4': {'lat': 16.46, 'lon': 107.59, name: 'フエ'},
+    '5': {'lat': 12.25, 'lon': 109.19, name: 'ニャチャン'},
+    '6': {'lat': 10.823, 'lon': 106.63, name: 'ホーチミン'}
+};
+
+// 撮影期間を入力
+var From = '2022-10-01';
+var To   = '2023-09-30';
+
+// 衛星画像・座標情報の取得をループして取得
+for (var i = 1; i <= Object.keys(locations).length; i++){
+    var images_i = ee.ImageCollection('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR')
+        .filterBounds(ee.Geometry.Point(locations[i].lon, locations[i].lat))
+        .filterDate(From, To);
+
+    // 画像の一覧と座標、リストを取得
+    var imglist_i = images_i.toList(images_i.size());
+    var Selected_image_i = images_i.first();
+    var PointList_i = Selected_image_i.geometry().coordinates().get(0);
+
+    // ee.ListオブジェクトのPointListを配列に変換
+    var vertices = PointList_i.getInfo();
+
+    // 緯度経度の最大値と最小値を初期化
+    var minLat = vertices[0][1];
+    var maxLat = vertices[0][1];
+    var minLon = vertices[0][0];
+    var maxLon = vertices[0][0];
+
+    /*
+    // 最大値と最小値を検索
+    for (var k = 1; k < vertices.length; k++) {
+        var lat = vertices[k][1];
+        var lon = vertices[k][0];
+    
+        if (lat < minLat) {
+            minLat = lat;
+        }
+        if (lat > maxLat) {
+            maxLat = lat;
+        }
+        if (lon < minLon) {
+            minLon = lon;
+        }
+        if (lon > maxLon) {
+            maxLon = lon;
+        }
+    }
+    print(minLat,maxLat,minLon,maxLon);
+    // 緯度・経度の最大・最小ポイントのペアを代入
+    for (var j = 1; j < vertices.length; j++) {
+        var lat = vertices[j][1];
+        var lon = vertices[j][0];
+    
+        if (lat == maxLat) {
+            var Top_P = [vertices[j][0], maxLat];
+        }
+        if (lat == minLat) {
+            var Bottom_P = [vertices[j][0], minLat];
+        }
+        if (lon == minLon) {
+            var Left_P = [minLon, vertices[j][1]];
+        }
+        if (lon == maxLon) {
+            var Right_P = [maxLon, vertices[j][1]];
+        }
+    }
+    */
+    
+    // 結果の出力
+    print(locations[i].name,
+          '撮影日リスト', imglist_i
+          //,'画像の座標リスト', PointList_i
+          //,'四隅の頂点：' + locations[i].name, Top_P, Bottom_P,Right_P, Left_P
+          );
+
+    // 衛星画像の出力
+    Map.addLayer(Selected_image_i.select(['HH']),
+        {min: 0, max: 8000}, 'HH：' + locations[i].name);
+    
+    /*
+    // 4点の描画 ※メモリを使いすぎるためエラーになる 
+    var p1 = ee.Feature(ee.Geometry.Point(Top_P));
+    var p2 = ee.Feature(ee.Geometry.Point(Bottom_P));
+    var p3 = ee.Feature(ee.Geometry.Point(Right_P));
+    var p4 = ee.Feature(ee.Geometry.Point(Left_P));
+    Map.addLayer(p1, {color: '00FF00'}, 'p1');
+    Map.addLayer(p2, {color: '00FF00'}, 'p2');
+    Map.addLayer(p3, {color: '00FF00'}, 'p3');
+    Map.addLayer(p4, {color: '00FF00'}, 'p4');
+    */
+}
