@@ -1,0 +1,68 @@
+// 事前に調べたPalsar-2の画像取得
+var palsar_200806 = ee.Image('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR/ALOS2335053100-200806_WWDL2_2GUD');
+var palsar_200808 = ee.Image('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR/ALOS2335343150-200808_WWDR2_2GUD');
+print('DN: Palsar-2 on 2020-08-06', palsar_200806,
+      'DN: Palsar-2 on 2020-08-08', palsar_200808);
+
+//Didital Number to dB関数の定義
+var Pal2dB = function (img_p) {
+  img_p = ee.Image(img_p);
+  var img_p_dn = img_p.multiply(img_p).log10().multiply(10.0).subtract(83.0);
+  var img_p_db = img_p_dn.focalMedian({
+    radius: 1, 
+    kernelType: "square",
+    units: "pixels"
+  });
+  return img_p_db;
+};
+
+palsar_200806 = Pal2dB(palsar_200806);
+palsar_200808 = Pal2dB(palsar_200808);
+print('dB: Palsar-2 on 2020-08-06', palsar_200806,
+      'dB:Palsar-2 on 2020-08-08', palsar_200808);
+
+
+// 事前に調べたSentinel-1の画像取得
+var sentinel_200730 = ee.Image('COPERNICUS/S1_GRD/S1B_IW_GRDH_1SDV_20200730T094415_20200730T094445_022699_02B14E_C9E7');
+var sentinel_200811 = ee.Image('COPERNICUS/S1_GRD/S1B_IW_GRDH_1SDV_20200811T094416_20200811T094445_022874_02B6B8_824C');
+print('Sentinel-1_2020-07-30', sentinel_200730,
+      'Sentinel-1_2020-08-11', sentinel_200811);
+
+/*Sentinelはデータ型的に変換されてる？
+//Didital Number to dB関数の定義
+var Sen2dB = function (img_s) {
+  img_s = ee.Image(img_s);
+  var img_s_dn = img_s.log10().multiply(10.0);
+  var img_s_db = img_s_dn.focalMedian({
+    radius: 1, 
+    kernelType: "square",
+    units: "pixels"
+  });
+  return img_s_db;
+};
+
+sentinel_200730 = Sen2dB(sentinel_200730);
+sentinel_200811 = Sen2dB(sentinel_200811);
+print('dB: Sentinel-1_2020-07-30', sentinel_200730,
+      'dB: Sentinel-1_2020-08-11', sentinel_200811);
+*/
+
+// とりあえず、引いてみる
+var HH_HV   = palsar_200806.select('HH').subtract(palsar_200808.select('HV'));
+var VV_VH = sentinel_200730.select('VV').subtract(sentinel_200811.select('VH'));
+
+
+// マップに変動を表示（0が無色、負で赤、正で白）
+Map.centerObject(center_point,12);
+Map.addLayer(
+  HH_HV,
+  {min: 0, max: 150, palette: ['white', 'red'], opacity: 0.6},
+  'HH-HV: Palsar-2');
+
+Map.addLayer(
+  VV_VH,
+  {min:0 , max: 150, palette: ['white', 'red'], opacity: 0.6},
+  'VV-VH: Sentinel-1');
+
+print('Palsar-2: HH-HV', HH_HV,
+      'Sentinel-1: VV-VH', VV_VH);
