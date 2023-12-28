@@ -1,0 +1,44 @@
+// 指定した範囲のHHの時系列変化をグラフにするスクリプト
+
+
+// 対象の地域を指定
+var dongthap = ee.FeatureCollection('FAO/GAUL/2015/level2')
+  .filter(ee.Filter.eq('ADM1_NAME', 'Dong Thap'));
+
+// Palsar-2 l2.2の画像データを取得
+var image = ee.ImageCollection('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR')
+  .filterBounds(dongthap)
+  .filterDate('2022-06-01', '2022-11-01');
+  
+// 画像情報と境界情報を出力
+print('画像情報', image, '境界情報', dongthap);
+
+// 地図に表示
+Map.addLayer(dongthap, { color: 'white' }, 'Admin Poly', 1);
+//Map.addLayer(image, { bands: ['HH'] }, 'HH');
+
+
+
+// 時系列データをグラフに
+var chart = ui.Chart.image.seriesByRegion({
+    imageCollection: image,
+    regions: dongthap,
+    reducer: ee.Reducer.mean(),
+    scale: 30,
+    xProperty: 'system:time_start'
+});
+
+// グラフの設定
+chart.setOptions({
+    title: 'ドンタップ省のPalsar-2 HHの時系列変化',
+    hAxis: {title: '日付'},
+    vAxis: {title: 'HH値'},
+    lineWidth: 1,
+    pointSize: 3,
+    series: {
+        0: {color: 'blue'}
+    }
+});
+
+// グラフを表示
+print(chart);
