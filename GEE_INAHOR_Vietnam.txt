@@ -1,0 +1,247 @@
+//INAHOR on GEE (multiple path/frame) v1.0 2022/10/26
+// Random Forestの準備
+// リストの準備
+var tables = [table1, table2, table3, table4, table5, table6, table7];
+
+//行政ポリゴンのインプット
+var admnFeat = ee.FeatureCollection('FAO/GAUL/2015/level2')
+                 //.filter(ee.Filter.eq('ADM0_NAME','Viet Nam'));
+                 .filter(ee.Filter.eq('ADM1_NAME','Dong Thap'));
+
+var classProperty = 'DN';
+var predictions = ee.ImageCollection([]);  // 予測結果を格納するための画像コレクション
+
+
+//nodata_filter関数の定義
+var nodata_filter = function(img1){
+  var img2 = ee.Image(img1);
+  var img_nodata = img2.select('HH').neq(0);
+  var img3 = img2.updateMask(img_nodata);
+  return img3;
+};
+
+
+//input PALSAR-2の画像を取得
+var images = ee.ImageCollection('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR')
+                .filterDate('2022-06-01', '2022-8-31')
+                .filterBounds(admnFeat)
+                .map(nodata_filter);
+var count = images.size().getInfo();
+var imglist = images.toList(count);
+//print('撮影画像リスト',imglist)
+
+
+//Didital Number to dB関数の定義
+var DN2dB = function (img) {
+  img = ee.Image(img);
+  var img4 = img.multiply(img).log10().multiply(10.0).subtract(83.0);
+  var img5 = img4.focalMedian({
+    radius: 1, 
+    kernelType: "square",
+    units: "pixels"
+  });
+  return img5;
+};
+
+
+//HH、HVの取得とDNへの変換
+var image;
+var img0_HH = ee.Image();
+var img0_HV = ee.Image();
+for( var i=0; i<count; i++ ){
+  image = ee.Image(ee.List(imglist).get(i));
+  image = DN2dB(image);
+  //print('50', image)
+
+  //ノイズ除去：median filter
+  image = image.focalMedian({
+    radius: 1, 
+    kernelType: "square",
+    units: "pixels"
+  });
+  
+  var image_HH =  image.select('HH');
+  var image_HV =  image.select('HV');
+  
+  var img0_HH = img0_HH.addBands(image_HH);
+  var img0_HV = img0_HV.addBands(image_HV);
+}
+
+
+//統計量の計算
+var reducer1 =  ee.Reducer.max();
+var reduce_output = reducer1.combine({reducer2: ee.Reducer.min(), sharedInputs: true})
+                       .combine({reducer2: ee.Reducer.mean(), sharedInputs: true});
+                       //.combine({reducer2: ee.Reducer.median(), sharedInputs: true})
+                       //.combine({reducer2: ee.Reducer.stdDev(), sharedInputs: true});
+
+var results_HH = img0_HH.reduce(reduce_output);
+var results_HV = img0_HV.reduce(reduce_output);
+var results = results_HH.addBands(results_HV);
+
+
+// Random Forest：各テーブルで学習と予測を行う
+for (var i = 0; i < tables.length; i++) {
+  var currentTable = tables[i];
+
+  var training = results.sampleRegions({
+    collection: currentTable,
+    properties: [classProperty],
+    scale: 25
+  });
+
+
+//  var classifier = ee.Classifier.smileRandomForest(10)
+//      .train({
+//        features: training,
+//        classProperty: classProperty,
+//        inputProperties: results.bandNames()
+//      });
+
+
+  // 予測精度の評価
+  for(var j=0; j<10; j++ ){
+    var withRandom = training.randomColumn({
+      columnName:'random',
+      seed:j});
+  
+    // 約半数ずつで学習とテストを行う
+    var split = 0.5;
+    var trainingPartition = withRandom.filter(ee.Filter.lt('random', split));
+    var testingPartition = withRandom.filter(ee.Filter.gte('random', split));
+
+    // 約半数で学習　
+    var trainedClassifier = ee.Classifier.smileRandomForest(10).train({
+      features: trainingPartition,
+      classProperty: classProperty,
+      inputProperties: results.bandNames()
+    });
+  
+    // 学習データの分類
+    var train_classified = trainingPartition.classify(trainedClassifier);
+  
+    // テストデータの分類
+    var test_classified = testingPartition.classify(trainedClassifier);
+  
+    // 混同行列の出力
+    var train_confusionMatrix = train_classified.errorMatrix(classProperty, 'classification');
+    print(j+1 ,'回目');
+    print('学習データの混同行列', train_confusionMatrix);
+    print('学習データの精度', train_confusionMatrix.accuracy());
+  
+    var test_confusionMatrix = test_classified.errorMatrix(classProperty, 'classification');
+    print('テストデータの混同行列', test_confusionMatrix);
+    print('テストデータの精度', test_confusionMatrix.accuracy());
+
+　  // 予測の実行
+　　var prediction = results.classify(trainedClassifier);
+
+  　// 予測結果をコレクションに追加
+　　predictions = predictions.merge(prediction);
+　　print('table'+i,training, 'predictions',predictions);　      
+
+  }
+}
+
+// 各テーブルの予測結果を統合する
+var intModel = predictions.reduce(ee.Reducer.mode()); 
+print('分類結果',intModel);
+
+
+//マップの準備とレイヤの追加
+Map.clear();
+Map.centerObject(admnFeat, 6);
+Map.addLayer(results_HH.select('max'), {bands:'max',min:-30,max:15},'max HH',0);
+Map.addLayer(results_HV.select('max'), {bands:'max',min:-30,max:15},'max HV',0);
+Map.addLayer(results_HH.select('min'), {bands:'min',min:-30,max:15},'min HH',0);
+Map.addLayer(results_HV.select('min'), {bands:'min',min:-30,max:15},'min HV',0);
+Map.addLayer(results_HH.select('mean'), {bands:'mean',min:-30,max:15},'mean HH',0);
+Map.addLayer(results_HV.select('mean'), {bands:'mean',min:-30,max:15},'mean HV',0);
+
+
+// パレットの定義：1が水田、0がそれ以外
+var CLS_PALETTE = ["000000", "FF0000"];
+
+
+// 分類結果の表示
+var classViz = {palette: CLS_PALETTE, min: 0, max: 1, opacity: 0.7};
+var classMasked = intModel.updateMask(intModel.eq(1));
+
+
+// 行政ポリゴンごとに水稲面積を推定
+var calcPaddyArea = function(feature) {
+  var areas = ee.Image.pixelArea().addBands(prediction)
+    .reduceRegion({
+      reducer: ee.Reducer.sum().group({
+        groupField: 1,
+        groupName: 'class',
+      }),
+      geometry: feature.geometry(),
+      scale: 50,
+      maxPixels: 1e10
+    });
+
+  var classAreas = ee.List(areas.get('groups'));
+  var classAreaLists = classAreas.map(function(item) {
+    var areaDict = ee.Dictionary(item);
+    var classNumber = ee.Number(
+      areaDict.get('class')).format();
+    //area unit:ha (convert m2 to ha)  
+    var area = ee.Number(
+      areaDict.get('sum')).divide(1e4);
+    return ee.List([classNumber, area]);
+  });
+  var result = ee.Dictionary(classAreaLists.flatten());
+  var district = feature.get('ADM1_NAME'); //ADM1_NAME:Dong Thap, ADM0_NAME:Vietnam
+  return ee.Feature(
+    feature.geometry(),
+    result.set('district', district));
+};
+
+
+//行政ポリゴンの描画
+var districtAreas = admnFeat.map(calcPaddyArea);
+print('districtAreas', districtAreas);
+Map.addLayer(districtAreas, {color: 'white'}, 'Admin Poly', 1);
+Map.addLayer(classMasked, classViz, 'classification');
+
+
+//ファイル出力
+var polygons = districtAreas
+    .map(function (f) { 
+      return ee.Feature(f).set('geometry_type', ee.Feature(f).geometry().type()); })
+    .filter(ee.Filter.equals('geometry_type', 'Polygon'));
+
+polygons = ee.FeatureCollection(polygons);
+
+Export.table.toDrive({
+  collection: polygons,
+  description:'polygons',
+  fileFormat: 'SHP'
+});
+
+/*
+var MultiPolygon = districtAreas
+    .map(function (f) { 
+      return ee.Feature(f).set('geometry_type', ee.Feature(f).geometry().type()); })
+    .filter(ee.Filter.equals('geometry_type', 'MultiPolygon'));
+
+MultiPolygon = ee.FeatureCollection(MultiPolygon);
+
+Export.table.toDrive({
+  collection: MultiPolygon,
+  description:'MultiPolygon',
+  fileFormat: 'SHP'
+});
+
+*/
+
+/*画像検索用
+var images = ee.ImageCollection('JAXA/ALOS/PALSAR-2/Level2_2/ScanSAR')
+                    .filterDate('2022-04-01', '2023-01-30')
+                    .filterBounds(center_point);
+        
+var count = images.size().getInfo();
+var imglist = images.toList(count);
+print('imglist',imglist)
+*/
